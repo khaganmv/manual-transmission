@@ -13,6 +13,11 @@ public class VehicleGearsData extends IScriptable {
 public func GetVehicleGearsData() -> ref<inkHashMap> {
     let vehicleGearsData: ref<inkHashMap> = new inkHashMap();
 
+    /* Vehicle.default */
+    vehicleGearsData.Insert(
+        TDBID.ToNumber(t"Vehicle.default"),
+        VehicleGearsData.Create([10.00, 20.00, 30.00, 40.00, 50.00, 60.00])
+    );
     /* Vehicle.cs_v_standard2_thorton_galena_nomad_disabled_interactions */
     vehicleGearsData.Insert(
         TDBID.ToNumber(t"Vehicle.cs_v_standard2_thorton_galena_nomad_disabled_interactions"),

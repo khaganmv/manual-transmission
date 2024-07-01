@@ -72,9 +72,12 @@ private final func RegisterInputListener() -> Void {
         .GetVehicle()
         .GetRecord()
         .GetRecordID();
+    let key = playerPuppet.vehicleGearsData.KeyExist(TDBID.ToNumber(vehicleRecordID)) 
+            ? TDBID.ToNumber(vehicleRecordID) 
+            : TDBID.ToNumber(t"Vehicle.default");
     let vehicleGearsData = playerPuppet
         .vehicleGearsData
-        .Get(TDBID.ToNumber(vehicleRecordID)) as VehicleGearsData;
+        .Get(key) as VehicleGearsData;
 
     this.gears = vehicleGearsData.gears;
 }
