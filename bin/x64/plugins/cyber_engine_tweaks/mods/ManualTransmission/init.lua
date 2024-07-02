@@ -43,6 +43,14 @@ registerForEvent("onInit", function ()
             :GetLocalPlayerMainGameObject()
             :RegisterInputListener(self, "Decelerate");
 
+        Game.GetPlayerSystem()
+            :GetLocalPlayerMainGameObject()
+            :RegisterInputListener(self, "Upshift");
+
+        Game.GetPlayerSystem()
+            :GetLocalPlayerMainGameObject()
+            :RegisterInputListener(self, "Downshift");
+
         local vehicleRecordID = TDBID.ToStringDEBUG(
             self:GetVehicle():GetRecord():GetRecordID()
         )
@@ -57,8 +65,26 @@ registerForEvent("onInit", function ()
     end)
     
     Observe("VehicleComponent", "OnAction", function (self, action, consumer)
-        if action:GetName().value == "Decelerate" then
+        local actionName = action:GetName().value
+
+        if actionName == "Decelerate" then
             decelerating = true
+        end
+        
+        if actionName == "Upshift" 
+        and ListenerAction.IsButtonJustPressed(action) 
+        then 
+            if gear + 1 <= #gears then
+                gear = gear + 1
+            end
+        end
+        
+        if actionName == "Downshift" 
+        and ListenerAction.IsButtonJustPressed(action) 
+        then 
+            if gear - 1 >= 1 then
+                gear = gear - 1
+            end
         end
     end)
 
