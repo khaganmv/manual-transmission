@@ -1,6 +1,6 @@
-Data = {}
+local data = {}
 
-Data.VEHICLE_GEARS_DATA = {
+data.VEHICLE_GEARS_DATA = {
 	["Vehicle.default"] = {10.00, 20.00, 30.00, 40.00, 50.00, 60.00},
 	["Vehicle.cs_v_standard2_thorton_galena_nomad_disabled_interactions"] = {10.00, 14.00, 21.00, 27.40, 32.00, 35.30, 38.00, 41.00},
 	["Vehicle.crashsite_destroyed"] = {9.00, 15.00, 20.00, 26.00, 30.00},
@@ -1334,4 +1334,4 @@ Data.VEHICLE_GEARS_DATA = {
 	["Vehicle.cs_savable_thorton_galena_voodoo_boys_broken"] = {9.00, 15.00, 20.00, 26.00, 30.00, 34.00},
 }
 
-return Data
+return data

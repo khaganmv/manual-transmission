@@ -1,102 +1,220 @@
-VEHICLE_GEARS_DATA = require("data").VEHICLE_GEARS_DATA
+local GameUI = require("modules/psiberx/GameUI")
+local config = require("modules/keanuWheeze/config")
+local inputManager = require("modules/keanuWheeze/inputManager")
+local utils = require("modules/utils")
+local data = require("modules/data")
 
-local decelerating = false
-local disabled = false
-local gears = nil
-local gear = 1
+local defaultSettings = {
+    enabled = true,
+    keyboard = {
+        upshift = {
+            ["keyboardUpshift_1"] = "IK_LShift",
+            ["keyboardUpshift_hold_1"] = false,
+            ["keyboardUpshift_keys"] = 1,
+        },
+        downshift = {
+            ["keyboardDownshift_1"] = "IK_LControl",
+            ["keyboardDownshift_hold_1"] = false,
+            ["keyboardDownshift_keys"] = 1,
+        },
+    },
+    gamepad = {
+        upshift = {
+            ["gamepadUpshift_1"] = "IK_Pad_DigitLeft",
+            ["gamepadUpshift_hold_1"] = false,
+            ["gamepadUpshift_keys"] = 1,
+        },
+        downshift = {
+            ["gamepadDownshift_1"] = "IK_Pad_DigitDown",
+            ["gamepadDownshift_hold_1"] = false,
+            ["gamepadDownshift_keys"] = 1,
+        },
+    },
+}
 
-function isInVehicle()
-    return Game.GetMountedVehicle(Game.GetPlayer()) ~= nil
+local settings = {}
+local runtimeData = {
+    inMenu = false,
+    inGame = false,
+    gears = nil,
+    gear = 1,
+    decelerating = false
+}
+
+local function upshift()
+    if utils.isInVehicle() and settings.enabled then
+        if runtimeData.gear + 1 <= #runtimeData.gears then
+            runtimeData.gear = runtimeData.gear + 1
+        end
+    end
 end
 
-registerInput("disable", "Disable", function (keypress)
-    if keypress then
-        disabled = not disabled
-    end
-end)
-
-registerInput("upshift", "Upshift", function (keypress)
-    if keypress 
-    and isInVehicle() 
-    and not disabled 
-    then
-        if gear + 1 <= #gears then
-            gear = gear + 1
+local function downshift()
+    if utils.isInVehicle() and settings.enabled then
+        if runtimeData.gear - 1 >= 1 then
+            runtimeData.gear = runtimeData.gear - 1
         end
     end
-end)
+end
 
-registerInput("downshift", "Downshift", function (keypress)
-    if keypress 
-    and isInVehicle() 
-    and not disabled 
-    then
-        if gear - 1 >= 1 then
-            gear = gear - 1
+local function initBindingInfo()
+    local keyboardUpshiftBindingInfo = utils.createBindingInfo(
+        inputManager,
+        "/manualTransmission/keyboardUpshift",
+        "keyboardUpshift",
+        defaultSettings.keyboard.upshift,
+        settings.keyboard.upshift,
+        function () upshift() end,
+        function (name, value)
+            settings.keyboard.upshift[name] = value
+            config.saveFile("config.json", settings)
         end
+    )
+
+    local keyboardDownshiftBindingInfo = utils.createBindingInfo(
+        inputManager,
+        "/manualTransmission/keyboardDownshift",
+        "keyboardDownshift",
+        defaultSettings.keyboard.downshift,
+        settings.keyboard.downshift,
+        function () downshift() end,
+        function (name, value)
+            settings.keyboard.downshift[name] = value
+            config.saveFile("config.json", settings)
+        end
+    )
+
+    local gamepadUpshiftBindingInfo = utils.createBindingInfo(
+        inputManager,
+        "/manualTransmission/gamepadUpshift",
+        "gamepadUpshift",
+        defaultSettings.gamepad.upshift,
+        settings.gamepad.upshift,
+        function () upshift() end,
+        function (name, value)
+            settings.gamepad.upshift[name] = value
+            config.saveFile("config.json", settings)
+        end
+    )
+
+    local gamepadDownshiftBindingInfo = utils.createBindingInfo(
+        inputManager,
+        "/manualTransmission/gamepadDownshift",
+        "gamepadDownshift",
+        defaultSettings.gamepad.downshift,
+        settings.gamepad.downshift,
+        function () downshift() end,
+        function (name, value)
+            settings.gamepad.downshift[name] = value
+            config.saveFile("config.json", settings)
+        end
+    )
+
+    inputManager.addNativeSettingsBinding(keyboardUpshiftBindingInfo)
+    inputManager.addNativeSettingsBinding(keyboardDownshiftBindingInfo)
+    inputManager.addNativeSettingsBinding(gamepadUpshiftBindingInfo)
+    inputManager.addNativeSettingsBinding(gamepadDownshiftBindingInfo)
+end
+
+local function initNativeSettingsUI()
+    local nativeSettings = GetMod("nativeSettings")
+
+    if not nativeSettings then
+        print("[ManualTransmission] Info: NativeSettings lib not found!")
+        return
     end
+
+    nativeSettings.addTab("/manualTransmission", "Manual Transmission")
+    
+    nativeSettings.addSubcategory("/manualTransmission/mod", "Mod")
+    nativeSettings.addSwitch(
+        "/manualTransmission/mod",
+        "Enabled",
+        "",
+        settings.enabled,
+        defaultSettings.enabled,
+        function (state) settings.enabled = state end
+    )
+    
+    nativeSettings.addSubcategory("/manualTransmission/keyboardUpshift", "Keyboard Hotkey (Upshift)")
+    nativeSettings.addSubcategory("/manualTransmission/keyboardDownshift", "Keyboard Hotkey (Downshift)")
+    nativeSettings.addSubcategory("/manualTransmission/gamepadUpshift", "Gamepad Hotkey (Upshift)")
+    nativeSettings.addSubcategory("/manualTransmission/gamepadDownshift", "Gamepad Hotkey (Downshift)")
+    initBindingInfo()
+end
+
+registerForEvent("onHook", function ()
+    inputManager.onHook()
 end)
 
-registerForEvent("onInit", function ()
+registerForEvent("onInit", function()
+    if not Codeware then
+        print("[ManualTransmission] Error: Missing Codeware")
+    end
+
+    config.tryCreateConfig("config.json", defaultSettings)
+    config.backwardComp("config.json", defaultSettings)
+    settings = config.loadFile("config.json")
+
+    initNativeSettingsUI()
+
+    GameUI.OnSessionStart(function()
+        runtimeData.inGame = true
+    end)
+
+    GameUI.OnSessionEnd(function()
+        runtimeData.inGame = false
+    end)
+
+    runtimeData.inGame = not GameUI.IsDetached()
+
+    Observe('RadialWheelController', 'OnIsInMenuChanged', function(_, isInMenu)
+        runtimeData.inMenu = isInMenu
+    end)
+
     Observe("VehicleComponent", "RegisterInputListener", function (self)
         Game.GetPlayerSystem()
             :GetLocalPlayerMainGameObject()
-            :RegisterInputListener(self, "Decelerate");
-
-        Game.GetPlayerSystem()
-            :GetLocalPlayerMainGameObject()
-            :RegisterInputListener(self, "Upshift");
-
-        Game.GetPlayerSystem()
-            :GetLocalPlayerMainGameObject()
-            :RegisterInputListener(self, "Downshift");
+            :RegisterInputListener(self, "Decelerate")
 
         local vehicleRecordID = TDBID.ToStringDEBUG(
             self:GetVehicle():GetRecord():GetRecordID()
         )
         local key = "Vehicle.default"
 
-        if VEHICLE_GEARS_DATA[vehicleRecordID] ~= nil then
+        if data.VEHICLE_GEARS_DATA[vehicleRecordID] ~= nil then
             key = vehicleRecordID
         end
 
-        gears = VEHICLE_GEARS_DATA[key]
-        gear = 1
+        runtimeData.gears = data.VEHICLE_GEARS_DATA[key]
+        runtimeData.gear = 1
     end)
-    
-    Observe("VehicleComponent", "OnAction", function (self, action, consumer)
-        local actionName = action:GetName().value
 
-        if actionName == "Decelerate" then
-            decelerating = true
-        end
-        
-        if actionName == "Upshift" 
-        and ListenerAction.IsButtonJustPressed(action) 
-        then 
-            if gear + 1 <= #gears then
-                gear = gear + 1
-            end
-        end
-        
-        if actionName == "Downshift" 
-        and ListenerAction.IsButtonJustPressed(action) 
-        then 
-            if gear - 1 >= 1 then
-                gear = gear - 1
-            end
+    Observe("VehicleComponent", "OnAction", function (self, action, consumer)
+        if action:GetName().value == "Decelerate" then
+            runtimeData.decelerating = true
         end
     end)
 
     Observe("VehicleComponent", "OnVehicleSpeedChange", function (self, speed)
-        if gears ~= nil
-        and speed >= gears[gear] 
-        and not decelerating 
-        and not disabled 
+        if runtimeData.gears ~= nil
+        and speed >= runtimeData.gears[runtimeData.gear]
+        and not runtimeData.decelerating
+        and settings.enabled
         then
             self:GetVehicle():ForceBrakesFor(0.01)
         end
 
-        decelerating = false
+        runtimeData.decelerating = false
     end)
+end)
+
+registerForEvent("onUpdate", function(dt)
+    if not runtimeData.inMenu and runtimeData.inGame then
+        inputManager.onUpdate(dt)
+    end
+end)
+
+registerForEvent("onShutdown", function ()
+    config.saveFile("config.json", settings)
 end)
