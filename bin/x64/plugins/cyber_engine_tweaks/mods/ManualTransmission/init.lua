@@ -6,6 +6,7 @@ local data = require("modules/data")
 
 local defaultSettings = {
     enabled = true,
+    enabledGearWidget = true,
     keyboard = {
         upshift = {
             ["keyboardUpshift_1"] = "IK_LShift",
@@ -38,13 +39,15 @@ local runtimeData = {
     inGame = false,
     gears = nil,
     gear = 1,
-    decelerating = false
+    gearWidget = nil,
+    decelerating = false,
 }
 
 local function upshift()
     if utils.isInVehicle() and settings.enabled then
         if runtimeData.gear + 1 <= #runtimeData.gears then
             runtimeData.gear = runtimeData.gear + 1
+            runtimeData.gearWidget:SetText(runtimeData.gear)
         end
     end
 end
@@ -53,8 +56,32 @@ local function downshift()
     if utils.isInVehicle() and settings.enabled then
         if runtimeData.gear - 1 >= 1 then
             runtimeData.gear = runtimeData.gear - 1
+            runtimeData.gearWidget:SetText(runtimeData.gear)
         end
     end
+end
+
+local function determineHighestApplicableGear(gears, speed)
+    for key, value in pairs(gears) do
+        if speed < value then
+            return key
+        end
+    end
+end
+
+local function initGearData(vehicle)
+    local vehicleRecordID = TDBID.ToStringDEBUG(
+        vehicle:GetRecord():GetRecordID()
+    )
+    local key = "Vehicle.default"
+
+    if data.VEHICLE_GEARS_DATA[vehicleRecordID] ~= nil then
+        key = vehicleRecordID
+    end
+
+    runtimeData.gears = data.VEHICLE_GEARS_DATA[key]
+    runtimeData.gear = determineHighestApplicableGear(runtimeData.gears, vehicle:GetCurrentSpeed())
+    runtimeData.gearWidget = utils.getOrCreateGearWidget(runtimeData.gear, settings.enabledGearWidget)
 end
 
 local function initBindingInfo()
@@ -70,7 +97,6 @@ local function initBindingInfo()
             config.saveFile("config.json", settings)
         end
     )
-
     local keyboardDownshiftBindingInfo = utils.createBindingInfo(
         inputManager,
         "/manualTransmission/keyboardDownshift",
@@ -83,7 +109,6 @@ local function initBindingInfo()
             config.saveFile("config.json", settings)
         end
     )
-
     local gamepadUpshiftBindingInfo = utils.createBindingInfo(
         inputManager,
         "/manualTransmission/gamepadUpshift",
@@ -96,7 +121,6 @@ local function initBindingInfo()
             config.saveFile("config.json", settings)
         end
     )
-
     local gamepadDownshiftBindingInfo = utils.createBindingInfo(
         inputManager,
         "/manualTransmission/gamepadDownshift",
@@ -135,6 +159,20 @@ local function initNativeSettingsUI()
         defaultSettings.enabled,
         function (state) settings.enabled = state end
     )
+    nativeSettings.addSwitch(
+        "/manualTransmission/mod",
+        "Gear Widget",
+        "",
+        settings.enabledGearWidget,
+        defaultSettings.enabledGearWidget,
+        function (state) 
+            settings.enabledGearWidget = state
+
+            if runtimeData.gearWidget ~= nil then
+                runtimeData.gearWidget:SetVisible(settings.enabledGearWidget)
+            end
+        end
+    )
     
     nativeSettings.addSubcategory("/manualTransmission/keyboardUpshift", "Keyboard Hotkey (Upshift)")
     nativeSettings.addSubcategory("/manualTransmission/keyboardDownshift", "Keyboard Hotkey (Downshift)")
@@ -168,6 +206,10 @@ registerForEvent("onInit", function()
 
     runtimeData.inGame = not GameUI.IsDetached()
 
+    if utils.isInVehicle() and not runtimeData.gears then
+        initGearData(Game.GetMountedVehicle(Game.GetPlayer()))
+    end
+
     Observe('RadialWheelController', 'OnIsInMenuChanged', function(_, isInMenu)
         runtimeData.inMenu = isInMenu
     end)
@@ -177,17 +219,7 @@ registerForEvent("onInit", function()
             :GetLocalPlayerMainGameObject()
             :RegisterInputListener(self, "Decelerate")
 
-        local vehicleRecordID = TDBID.ToStringDEBUG(
-            self:GetVehicle():GetRecord():GetRecordID()
-        )
-        local key = "Vehicle.default"
-
-        if data.VEHICLE_GEARS_DATA[vehicleRecordID] ~= nil then
-            key = vehicleRecordID
-        end
-
-        runtimeData.gears = data.VEHICLE_GEARS_DATA[key]
-        runtimeData.gear = 1
+        initGearData(self:GetVehicle())
     end)
 
     Observe("VehicleComponent", "OnAction", function (self, action, consumer)
@@ -200,12 +232,38 @@ registerForEvent("onInit", function()
         if runtimeData.gears ~= nil
         and speed >= runtimeData.gears[runtimeData.gear]
         and not runtimeData.decelerating
-        and settings.enabled
-        then
+        and settings.enabled then
             self:GetVehicle():ForceBrakesFor(0.01)
         end
 
         runtimeData.decelerating = false
+    end)
+
+    Observe("VehicleComponent", "OnMountingEvent", function ()
+        if runtimeData.gearWidget
+        and settings.enabledGearWidget
+        and utils.isInVehicle() then
+            runtimeData.gearWidget:SetText(runtimeData.gear)
+            runtimeData.gearWidget:SetVisible(true)
+        end
+	end)
+
+    Observe("VehicleComponent", "OnUnmountingEvent", function ()
+        if runtimeData.gearWidget then
+            runtimeData.gearWidget:SetVisible(false)
+        end
+	end)
+
+    Observe("hudCarController", "OnSpeedValueChanged", function (self)
+        if runtimeData.gearWidget then
+            local scale = self:GetRootWidget():GetParentWidget():GetScale()
+
+            if runtimeData.gearWidget:GetScale().X ~= scale.X then
+                runtimeData.gearWidget:SetScale(scale)
+            end
+
+            utils.updateGearWidgetMargin(runtimeData.gearWidget)
+        end
     end)
 end)
 
