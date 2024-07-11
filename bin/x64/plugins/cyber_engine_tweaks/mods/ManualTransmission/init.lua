@@ -2,7 +2,6 @@ local GameUI = require("modules/psiberx/GameUI")
 local config = require("modules/keanuWheeze/config")
 local inputManager = require("modules/keanuWheeze/inputManager")
 local utils = require("modules/utils")
-local data = require("modules/data")
 
 local defaultSettings = {
     enabled = true,
@@ -37,6 +36,7 @@ local settings = {}
 local runtimeData = {
     inMenu = false,
     inGame = false,
+    vehicleGearData = nil,
     gears = nil,
     gear = 1,
     gearWidget = nil,
@@ -73,13 +73,8 @@ local function initGearData(vehicle)
     local vehicleRecordID = TDBID.ToStringDEBUG(
         vehicle:GetRecord():GetRecordID()
     )
-    local key = "Vehicle.default"
 
-    if data.VEHICLE_GEARS_DATA[vehicleRecordID] ~= nil then
-        key = vehicleRecordID
-    end
-
-    runtimeData.gears = data.VEHICLE_GEARS_DATA[key]
+    runtimeData.gears = runtimeData.vehicleGearData[vehicleRecordID]
     runtimeData.gear = determineHighestApplicableGear(runtimeData.gears, vehicle:GetCurrentSpeed())
     runtimeData.gearWidget = utils.getOrCreateGearWidget(runtimeData.gear, settings.enabledGearWidget)
 end
@@ -180,6 +175,10 @@ local function initNativeSettingsUI()
     nativeSettings.addSubcategory("/manualTransmission/gamepadDownshift", "Gamepad Hotkey (Downshift)")
     initBindingInfo()
 end
+
+registerForEvent("onTweak", function ()
+    runtimeData.vehicleGearData = utils.getVehicleGearData()
+end)
 
 registerForEvent("onHook", function ()
     inputManager.onHook()

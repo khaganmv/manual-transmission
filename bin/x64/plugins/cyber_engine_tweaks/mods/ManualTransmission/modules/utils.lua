@@ -1,7 +1,108 @@
 local utils = {}
 
+function utils.getVehicleGearData()
+    local vehicleGearData = {}
+    local vehicleRecords = TweakDB:GetRecords("gamedataVehicle_Record")
+
+    for i, vehicleRecord in pairs(vehicleRecords) do
+        local vehicleRecordID = TDBID.ToStringDEBUG(vehicleRecord:GetRecordID())
+        local vehicleEngineDataRecordID = TDBID.ToStringDEBUG(TweakDB:GetFlat(vehicleRecordID .. ".vehEngineData"))
+        local vehicleGears = TweakDB:GetFlat(vehicleEngineDataRecordID .. ".gears")
+    
+        local vehicleMaxSpeeds = {}
+
+        for j, vehicleGear in pairs(vehicleGears) do
+            local vehicleGearRecordID = TDBID.ToStringDEBUG(vehicleGear)
+            local maxSpeed = TweakDB:GetFlat(vehicleGearRecordID .. ".maxSpeed")
+            vehicleMaxSpeeds[j] = maxSpeed
+        end
+
+        if vehicleMaxSpeeds[1] >= vehicleMaxSpeeds[2] then
+            table.remove(vehicleMaxSpeeds, 1)
+        end
+
+        vehicleGearData[vehicleRecordID] = vehicleMaxSpeeds
+    end
+
+    return vehicleGearData
+end
+
+function utils.createBindingInfo(
+    inputManager,
+    nativeSettingsPath,
+    id,
+    defaultSettings,
+    settings,
+    callback,
+    saveCallback
+)
+    return inputManager.createBindingInfo(
+        -- nativeSettingsPath
+        nativeSettingsPath,
+        -- keybindLabel
+        "Key",
+        -- isHoldLabel
+        "Hold",
+        -- keybindDescription
+        "",
+        -- isHoldDescription
+        "Controls whether the bound key below needs to be held down for some time to be activated",
+        -- id
+        id,
+        -- maxKeys
+        3,
+        -- maxKeysLabel
+        "Hotkey Keys Amount",
+        -- maxKeysDescription
+        "Changes how many keys this hotkey has, all of them have to pressed for the hotkey to be activated",
+        -- supportsHold
+        true,
+        -- defaultOptions
+        defaultSettings,
+        -- savedOptions
+        settings,
+        -- callback
+        callback,
+        -- saveCallback
+        saveCallback
+    )
+end
+
 function utils.isInVehicle()
     return Game.GetMountedVehicle(Game.GetPlayer()) ~= nil
+end
+
+function utils.getOrCreateGearWidget(text, visible)
+    local root = GameInstance
+        .GetInkSystem()
+        :GetLayer("inkHUDLayer")
+        :GetVirtualWindow()
+        :GetWidget("Root")
+    local existingGearWidget = root:GetWidget("GearWidget")
+
+    if existingGearWidget and existingGearWidget:GetName().value == "GearWidget" then
+        return existingGearWidget
+    end
+    
+    local gearWidget = inkText.new()
+
+	gearWidget:SetName(StringToName("GearWidget"))
+	gearWidget:SetFontFamily("base\\gameplay\\gui\\fonts\\digital_readout\\digitalreadout.inkfontfamily")
+    gearWidget:SetFontSize(70)
+    gearWidget:SetTintColor(HDRColor.new({
+        Red = 0.36862745881081, 
+        Green = 0.96470594406128, 
+        Blue = 0.96470594406128, 
+        Alpha = 1
+    }))
+	gearWidget:SetHorizontalAlignment(textHorizontalAlignment.Center)
+	gearWidget:SetVerticalAlignment(textVerticalAlignment.Center)
+    
+	gearWidget:SetText(text)
+	gearWidget:Reparent(root, -1)
+    gearWidget:SetVisible(visible)
+
+    return gearWidget
 end
 
 function utils.updateGearWidgetMargin(widget)
@@ -53,80 +154,6 @@ function utils.updateGearWidgetMargin(widget)
     local margin = determineMargin(width, height)
 
     widget:SetMargin(margin)
-end
-
-function utils.getOrCreateGearWidget(text, visible)
-    local root = GameInstance
-        .GetInkSystem()
-        :GetLayer("inkHUDLayer")
-        :GetVirtualWindow()
-        :GetWidget("Root")
-    local existingGearWidget = root:GetWidget("GearWidget")
-
-    if existingGearWidget and existingGearWidget:GetName().value == "GearWidget" then
-        return existingGearWidget
-    end
-    
-    local gearWidget = inkText.new()
-
-	gearWidget:SetName(StringToName("GearWidget"))
-	gearWidget:SetFontFamily("base\\gameplay\\gui\\fonts\\digital_readout\\digitalreadout.inkfontfamily")
-    gearWidget:SetFontSize(70)
-    gearWidget:SetTintColor(HDRColor.new({
-        Red = 0.36862745881081, 
-        Green = 0.96470594406128, 
-        Blue = 0.96470594406128, 
-        Alpha = 1
-    }))
-	gearWidget:SetHorizontalAlignment(textHorizontalAlignment.Center)
-	gearWidget:SetVerticalAlignment(textVerticalAlignment.Center)
-    
-	gearWidget:SetText(text)
-	gearWidget:Reparent(root, -1)
-    gearWidget:SetVisible(visible)
-
-    return gearWidget
-end
-
-function utils.createBindingInfo(
-    inputManager,
-    nativeSettingsPath,
-    id,
-    defaultSettings,
-    settings,
-    callback,
-    saveCallback
-)
-    return inputManager.createBindingInfo(
-        -- nativeSettingsPath
-        nativeSettingsPath,
-        -- keybindLabel
-        "Key",
-        -- isHoldLabel
-        "Hold",
-        -- keybindDescription
-        "",
-        -- isHoldDescription
-        "Controls whether the bound key below needs to be held down for some time to be activated",
-        -- id
-        id,
-        -- maxKeys
-        3,
-        -- maxKeysLabel
-        "Hotkey Keys Amount",
-        -- maxKeysDescription
-        "Changes how many keys this hotkey has, all of them have to pressed for the hotkey to be activated",
-        -- supportsHold
-        true,
-        -- defaultOptions
-        defaultSettings,
-        -- savedOptions
-        settings,
-        -- callback
-        callback,
-        -- saveCallback
-        saveCallback
-    )
 end
 
 return utils
