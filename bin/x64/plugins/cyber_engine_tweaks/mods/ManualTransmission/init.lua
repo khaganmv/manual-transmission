@@ -2,7 +2,6 @@ local GameUI = require("modules/psiberx/GameUI")
 local config = require("modules/keanuWheeze/config")
 local inputManager = require("modules/keanuWheeze/inputManager")
 local utils = require("modules/utils")
-local data = require("modules/data")
 
 local defaultSettings = {
     enabled = true,
@@ -21,12 +20,12 @@ local defaultSettings = {
     },
     gamepad = {
         upshift = {
-            ["gamepadUpshift_1"] = "IK_Pad_DigitLeft",
+            ["gamepadUpshift_1"] = "",
             ["gamepadUpshift_hold_1"] = false,
             ["gamepadUpshift_keys"] = 1,
         },
         downshift = {
-            ["gamepadDownshift_1"] = "IK_Pad_DigitDown",
+            ["gamepadDownshift_1"] = "",
             ["gamepadDownshift_hold_1"] = false,
             ["gamepadDownshift_keys"] = 1,
         },
@@ -37,6 +36,7 @@ local settings = {}
 local runtimeData = {
     inMenu = false,
     inGame = false,
+    vehicleGearData = nil,
     gears = nil,
     gear = 1,
     gearWidget = nil,
@@ -69,17 +69,23 @@ local function determineHighestApplicableGear(gears, speed)
     end
 end
 
+local function shouldDisplayGearWidget()
+    return utils.isInVehicle()
+       and utils.isDriver()
+       and settings.enabled
+       and settings.enabledGearWidget
+end
+
 local function initGearData(vehicle)
     local vehicleRecordID = TDBID.ToStringDEBUG(
         vehicle:GetRecord():GetRecordID()
     )
-    local key = "Vehicle.default"
 
-    if data.VEHICLE_GEARS_DATA[vehicleRecordID] ~= nil then
-        key = vehicleRecordID
+    if runtimeData.vehicleGearData == nil then
+        runtimeData.vehicleGearData = utils.getVehicleGearData()
     end
 
-    runtimeData.gears = data.VEHICLE_GEARS_DATA[key]
+    runtimeData.gears = runtimeData.vehicleGearData[vehicleRecordID]
     runtimeData.gear = determineHighestApplicableGear(runtimeData.gears, vehicle:GetCurrentSpeed())
     runtimeData.gearWidget = utils.getOrCreateGearWidget(runtimeData.gear, settings.enabledGearWidget)
 end
@@ -169,7 +175,7 @@ local function initNativeSettingsUI()
             settings.enabledGearWidget = state
 
             if runtimeData.gearWidget ~= nil then
-                runtimeData.gearWidget:SetVisible(settings.enabledGearWidget)
+                runtimeData.gearWidget:SetVisible(shouldDisplayGearWidget())
             end
         end
     )
@@ -240,9 +246,7 @@ registerForEvent("onInit", function()
     end)
 
     Observe("VehicleComponent", "OnMountingEvent", function ()
-        if runtimeData.gearWidget
-        and settings.enabledGearWidget
-        and utils.isInVehicle() then
+        if shouldDisplayGearWidget() then
             runtimeData.gearWidget:SetText(runtimeData.gear)
             runtimeData.gearWidget:SetVisible(true)
         end
@@ -256,13 +260,14 @@ registerForEvent("onInit", function()
 
     Observe("hudCarController", "OnSpeedValueChanged", function (self)
         if runtimeData.gearWidget then
-            local scale = self:GetRootWidget():GetParentWidget():GetScale()
+            local scale = self:GetRootWidget().parentWidget:GetScale()
 
             if runtimeData.gearWidget:GetScale().X ~= scale.X then
                 runtimeData.gearWidget:SetScale(scale)
             end
 
             utils.updateGearWidgetMargin(runtimeData.gearWidget)
+            runtimeData.gearWidget:SetVisible(shouldDisplayGearWidget())
         end
     end)
 end)
