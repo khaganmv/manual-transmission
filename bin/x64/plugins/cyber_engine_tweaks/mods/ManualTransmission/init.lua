@@ -246,10 +246,12 @@ registerForEvent("onInit", function()
     end)
 
     Observe("VehicleComponent", "OnMountingEvent", function ()
-        if shouldDisplayGearWidget() then
-            runtimeData.gearWidget:SetText(runtimeData.gear)
-            runtimeData.gearWidget:SetVisible(true)
+        if runtimeData.gearWidget == nil then
+            runtimeData.gearWidget = utils.getOrCreateGearWidget(runtimeData.gear, shouldDisplayGearWidget())
         end
+
+        runtimeData.gearWidget:SetText(runtimeData.gear)
+        runtimeData.gearWidget:SetVisible(shouldDisplayGearWidget())
 	end)
 
     Observe("VehicleComponent", "OnUnmountingEvent", function ()
@@ -262,11 +264,8 @@ registerForEvent("onInit", function()
         if runtimeData.gearWidget then
             local scale = self:GetRootWidget().parentWidget:GetScale()
 
-            if runtimeData.gearWidget:GetScale().X ~= scale.X then
-                runtimeData.gearWidget:SetScale(scale)
-            end
-
             utils.updateGearWidgetMargin(runtimeData.gearWidget)
+            runtimeData.gearWidget:SetScale(scale)
             runtimeData.gearWidget:SetVisible(shouldDisplayGearWidget())
         end
     end)

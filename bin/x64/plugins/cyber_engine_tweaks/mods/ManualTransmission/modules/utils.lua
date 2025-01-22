@@ -36,6 +36,7 @@ function utils.getVehicleGearData()
             table.remove(vehicleMaxSpeeds, 1)
         end
 
+        vehicleMaxSpeeds[#vehicleMaxSpeeds] = 9999
         vehicleGearData[vehicleRecordID] = vehicleMaxSpeeds
     end
 
