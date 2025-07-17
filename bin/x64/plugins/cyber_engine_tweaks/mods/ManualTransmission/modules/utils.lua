@@ -22,22 +22,24 @@ function utils.getVehicleGearData()
         local vehicleRecordID = TDBID.ToStringDEBUG(vehicleRecord:GetRecordID())
         local vehicleEngineDataRecordID = TDBID.ToStringDEBUG(TweakDB:GetFlat(vehicleRecordID .. ".vehEngineData"))
         local vehicleGears = TweakDB:GetFlat(vehicleEngineDataRecordID .. ".gears")
-    
-        local vehicleMaxSpeeds = {}
 
-        for j, vehicleGear in pairs(vehicleGears) do
-            local vehicleGearRecordID = TDBID.ToStringDEBUG(vehicleGear)
-            local maxSpeed = TweakDB:GetFlat(vehicleGearRecordID .. ".maxSpeed")
-            
-            vehicleMaxSpeeds[j] = maxSpeed
+        if vehicleGears ~= nil then
+            local vehicleMaxSpeeds = {}
+
+            for j, vehicleGear in pairs(vehicleGears) do
+                local vehicleGearRecordID = TDBID.ToStringDEBUG(vehicleGear)
+                local maxSpeed = TweakDB:GetFlat(vehicleGearRecordID .. ".maxSpeed")
+                
+                vehicleMaxSpeeds[j] = maxSpeed
+            end
+
+            if vehicleMaxSpeeds[1] >= vehicleMaxSpeeds[2] then
+                table.remove(vehicleMaxSpeeds, 1)
+            end
+
+            vehicleMaxSpeeds[#vehicleMaxSpeeds] = 9999
+            vehicleGearData[vehicleRecordID] = vehicleMaxSpeeds
         end
-
-        if vehicleMaxSpeeds[1] >= vehicleMaxSpeeds[2] then
-            table.remove(vehicleMaxSpeeds, 1)
-        end
-
-        vehicleMaxSpeeds[#vehicleMaxSpeeds] = 9999
-        vehicleGearData[vehicleRecordID] = vehicleMaxSpeeds
     end
 
     return vehicleGearData
